@@ -667,9 +667,14 @@ function renderAllRecords(filter){
              item._type==='trip'?renderTripDesc(item):
              item._type==='dispatch'?renderTripDesc(item)+' ｜ 航班:'+item.flight+' '+item.contact:
              item.plate+' '+item.bottles+'瓶 $'+item.amount+(item.paid?' 已付':'未付');
+    var timeInfo='';
+    if(item.createdAt)timeInfo+='<span style="color:var(--text-muted)">建立 '+item.createdAt+'</span>';
+    if(item.updatedAt)timeInfo+=(timeInfo?' · ':'')+'<span style="color:var(--text-muted)">修改 '+item.updatedAt+'</span>';
     r.innerHTML='<div class="record-dot" style="background:'+col+'"></div><div class="record-body">'
       +'<div class="record-title"><span style="font-size:10px;padding:1px 6px;border-radius:3px;background:'+col+'22;color:'+col+';margin-right:5px">'+labels[item._type]+'</span>'+item.driverName+' · '+item._date+'</div>'
-      +'<div class="record-sub">'+desc+'</div></div>';
+      +'<div class="record-sub">'+desc+'</div>'
+      +(timeInfo?'<div style="font-size:10px;margin-top:3px">'+timeInfo+'</div>':'')
+      +'</div>';
     el.appendChild(r);
   });
   if(!all.length&&!driverLogs.length)el.innerHTML='<div style="color:var(--text-secondary);padding:20px 0">尚無紀錄</div>';
@@ -712,7 +717,7 @@ function saveLeave(){
   if(currentRole==='driver'&&!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
   var sameDay=leaves.filter(function(l){return l.date===dateVal;});
   if(sameDay.length>=4){alert('已達當日休假人數上限');return;}
-  var nl={id:'L'+Date.now(),driverId:currentUser.id,driverName:currentUser.name,type:type,date:dateVal,note:document.getElementById('m-leave-note').value};
+  var nl={id:'L'+Date.now(),driverId:currentUser.id,driverName:currentUser.name,type:type,date:dateVal,note:document.getElementById('m-leave-note').value,createdAt:nowDtStr(),updatedAt:''};
   if(type==='partial'){nl.startTime=document.getElementById('m-leave-start').value;nl.endTime=document.getElementById('m-leave-end').value;}
   leaves.push(nl);saveLeaves();closeModal();renderAll();
 }
@@ -733,6 +738,7 @@ function updateLeave(id){
   l.date=dateVal;
   l.note=document.getElementById('m-leave-note').value;
   if(l.type==='partial'){var s=document.getElementById('m-leave-start');var e=document.getElementById('m-leave-end');if(s)l.startTime=s.value;if(e)l.endTime=e.value;}
+  l.updatedAt=nowDtStr();
   saveLeaves();closeModal();renderAll();
 }
 function delLeave(id){if(confirm('確認刪除此休假紀錄？')){leaves=leaves.filter(function(l){return l.id!==id;});saveLeaves();renderAll();}}
@@ -756,7 +762,7 @@ function saveTrip(){
     tripType:type,airport:getAirport(type),froms:window._tmpFroms.slice(),tos:window._tmpTos.slice(),
     passengers:parseInt(document.getElementById('m-trip-pax').value)||1,
     amount:0,
-    note:document.getElementById('m-trip-note').value});
+    note:document.getElementById('m-trip-note').value,createdAt:nowDtStr(),updatedAt:''});
   saveTrips();closeModal();renderAll();
 }
 function editTrip(id){
@@ -778,6 +784,7 @@ function updateTrip(id){
   t.tripType=type;t.airport=getAirport(type);t.froms=window._tmpFroms.slice();t.tos=window._tmpTos.slice();
   t.passengers=parseInt(document.getElementById('m-trip-pax').value)||1;
   t.note=document.getElementById('m-trip-note').value;
+  t.updatedAt=nowDtStr();
   saveTrips();closeModal();renderAll();
 }
 function delTrip(id){if(confirm('確認刪除？')){trips=trips.filter(function(t){return t.id!==id;});saveTrips();renderAll();}}
@@ -802,7 +809,7 @@ function saveDispatch(){
     flight:document.getElementById('m-dp-flight').value,contact:document.getElementById('m-dp-contact').value,
     phone:document.getElementById('m-dp-phone').value,payment:document.getElementById('m-dp-pay').value,
     amount:parseInt(document.getElementById('m-dp-amount').value)||0,
-    note:document.getElementById('m-dp-note').value});
+    note:document.getElementById('m-dp-note').value,createdAt:nowDtStr(),updatedAt:''});
   saveDispatches();closeModal();renderAll();
 }
 function editDispatch(id){
@@ -824,6 +831,7 @@ function updateDispatch(id){
   d.flight=document.getElementById('m-dp-flight').value;d.contact=document.getElementById('m-dp-contact').value;
   d.phone=document.getElementById('m-dp-phone').value;d.amount=parseInt(document.getElementById('m-dp-amount').value)||0;
   d.note=document.getElementById('m-dp-note').value;
+  d.updatedAt=nowDtStr();
   saveDispatches();closeModal();renderAll();
 }
 function delDispatch(id){if(confirm('確認刪除？')){dispatches=dispatches.filter(function(d){return d.id!==id;});saveDispatches();renderAll();}}
@@ -850,7 +858,7 @@ function saveOil(){
     plate:document.getElementById('m-oil-plate').value,
     bottles:parseInt(document.getElementById('m-oil-bottles').value)||1,
     amount:parseInt(document.getElementById('m-oil-amount').value)||0,
-    paid:document.getElementById('m-oil-paid').value==='1'});
+    paid:document.getElementById('m-oil-paid').value==='1',createdAt:nowDtStr(),updatedAt:''});
   saveOils();closeModal();renderAll();
 }
 function editOil(id){
@@ -868,6 +876,7 @@ function updateOil(id){
   o.bottles=parseInt(document.getElementById('m-oil-bottles').value)||1;
   o.amount=parseInt(document.getElementById('m-oil-amount').value)||0;
   o.paid=document.getElementById('m-oil-paid').value==='1';
+  o.updatedAt=nowDtStr();
   saveOils();closeModal();renderAll();
 }
 function delOil(id){if(confirm('確認刪除？')){oils=oils.filter(function(o){return o.id!==id;});saveOils();renderAll();}}
