@@ -660,6 +660,11 @@ function renderAllRecords(filter){
     ...oils.map(function(o){return Object.assign({},o,{_type:'oil',_date:o.date});})
   ].filter(function(x){return filter==='all'||x.driverId===filter;})
    .sort(function(a,b){return b._date.localeCompare(a._date);});
+  var filteredLogs=activityLogs.filter(function(log){
+    if(filter==='all')return true;
+    var drv=drivers.find(function(d){return d.id===filter;});
+    return drv&&log.summary.indexOf(drv.name)===0;
+  });
   var colors={leave:'#1d9e75',trip:'#378add',dispatch:'#ba7517',oil:'#e24b4a'};
   var labels={leave:'休假',trip:'私趟',dispatch:'派單',oil:'機油'};
   // ── Activity log section (top) ──────────────────
@@ -713,12 +718,7 @@ function renderAllRecords(filter){
       +'</div>';
     el.appendChild(r);
   });
-  // Activity logs section - show FIRST
-  var filteredLogs=activityLogs.filter(function(log){
-    if(filter==='all')return true;
-    var drv=drivers.find(function(d){return d.id===filter;});
-    return drv&&log.summary.indexOf(drv.name)===0;
-  });
+
 
   // Driver account logs section
   if(driverLogs.length&&(filter==='all')){
