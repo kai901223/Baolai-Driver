@@ -662,6 +662,40 @@ function renderAllRecords(filter){
    .sort(function(a,b){return b._date.localeCompare(a._date);});
   var colors={leave:'#1d9e75',trip:'#378add',dispatch:'#ba7517',oil:'#e24b4a'};
   var labels={leave:'休假',trip:'私趟',dispatch:'派單',oil:'機油'};
+  // ── Activity log section (top) ──────────────────
+  var typeLabels2={leave:'休假',trip:'私趟',dispatch:'派單',oil:'機油'};
+  var typeColors2={leave:'#1d9e75',trip:'#378add',dispatch:'#ba7517',oil:'#e24b4a'};
+  if(filteredLogs.length){
+    var logSec=document.createElement('div');
+    logSec.style.cssText='margin-bottom:16px;padding-bottom:12px;border-bottom:0.5px solid var(--border-light)';
+    logSec.innerHTML='<div style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:8px">操作異動紀錄</div>';
+    filteredLogs.slice().reverse().forEach(function(log){
+      var r2=document.createElement('div');r2.className='record-item';r2.style.marginBottom='6px';
+      var acCol=log.action==='新增'?'#1d9e75':log.action==='修改'?'#378add':'#e24b4a';
+      var tCol=typeColors2[log.type]||'#888';
+      var tLabel=typeLabels2[log.type]||log.type;
+      r2.innerHTML='<div class="record-dot" style="background:'+acCol+'"></div>'
+        +'<div class="record-body">'
+        +'<div class="record-title">'
+        +'<span style="font-size:10px;padding:1px 6px;border-radius:3px;background:'+tCol+'22;color:'+tCol+';margin-right:4px">'+tLabel+'</span>'
+        +'<span style="font-size:10px;padding:1px 6px;border-radius:3px;background:'+acCol+'22;color:'+acCol+';margin-right:6px">'+log.action+'</span>'
+        +log.summary+'</div>'
+        +'<div class="record-sub">'+log.dt+' · 操作者：'+log.by+'</div>'
+        +'</div>';
+      logSec.appendChild(r2);
+    });
+    el.appendChild(logSec);
+  }
+
+  // ── Main records list ──────────────────────────
+  if(all.length){
+    var mainTitle=document.createElement('div');
+    mainTitle.style.cssText='font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:8px';
+    mainTitle.textContent='所有資料';
+    el.appendChild(mainTitle);
+  }
+  if(!all.length&&!filteredLogs.length&&!driverLogs.length)el.innerHTML='<div style="color:var(--text-secondary);padding:20px 0">尚無紀錄</div>';
+
   all.forEach(function(item){
     var r=document.createElement('div');r.className='record-item';
     var col=colors[item._type];
@@ -679,38 +713,12 @@ function renderAllRecords(filter){
       +'</div>';
     el.appendChild(r);
   });
-  if(!all.length&&!driverLogs.length&&!activityLogs.length)el.innerHTML='<div style="color:var(--text-secondary);padding:20px 0">尚無紀錄</div>';
-
-  // Activity logs section
+  // Activity logs section - show FIRST
   var filteredLogs=activityLogs.filter(function(log){
     if(filter==='all')return true;
-    // match by driverName in summary
     var drv=drivers.find(function(d){return d.id===filter;});
     return drv&&log.summary.indexOf(drv.name)===0;
   });
-  if(filteredLogs.length){
-    var sec=document.createElement('div');
-    sec.style.cssText='margin-top:16px;padding-top:12px;border-top:0.5px solid var(--border-light)';
-    sec.innerHTML='<div style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:8px">操作異動紀錄</div>';
-    var typeLabels={leave:'休假',trip:'私趟',dispatch:'派單',oil:'機油'};
-    var typeColors={leave:'#1d9e75',trip:'#378add',dispatch:'#ba7517',oil:'#e24b4a'};
-    filteredLogs.slice().reverse().forEach(function(log){
-      var r=document.createElement('div');r.className='record-item';r.style.marginBottom='6px';
-      var acCol=log.action==='新增'?'#1d9e75':log.action==='修改'?'#378add':'#e24b4a';
-      var tCol=typeColors[log.type]||'#888';
-      var tLabel=typeLabels[log.type]||log.type;
-      r.innerHTML='<div class="record-dot" style="background:'+acCol+'"></div>'
-        +'<div class="record-body">'
-        +'<div class="record-title">'
-        +'<span style="font-size:10px;padding:1px 6px;border-radius:3px;background:'+tCol+'22;color:'+tCol+';margin-right:4px">'+tLabel+'</span>'
-        +'<span style="font-size:10px;padding:1px 6px;border-radius:3px;background:'+acCol+'22;color:'+acCol+';margin-right:6px">'+log.action+'</span>'
-        +log.summary+'</div>'
-        +'<div class="record-sub">'+log.dt+' · 操作者：'+log.by+'</div>'
-        +'</div>';
-      sec.appendChild(r);
-    });
-    el.appendChild(sec);
-  }
 
   // Driver account logs section
   if(driverLogs.length&&(filter==='all')){
