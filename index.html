@@ -315,7 +315,7 @@ function loadData(){
   dispatches=LS.get('dispatches',[]);
   oils=LS.get('oils',[]);
   driverLogs=LS.get('driverLogs',[]);
-  activityLogs=LS.get('activityLogs',[]);
+  activityLogs=LS.get('activityLogs',[])||[];
 }
 function saveDrivers(){LS.set('drivers',drivers);}
 function saveLeaves(){LS.set('leaves',leaves);}
@@ -323,7 +323,7 @@ function saveTrips(){LS.set('trips',trips);}
 function saveDispatches(){LS.set('dispatches',dispatches);}
 function saveOils(){LS.set('oils',oils);}
 function saveDriverLogs(){LS.set('driverLogs',driverLogs);}
-function saveActivityLogs(){LS.set('activityLogs',activityLogs);}
+function saveActivityLogs(){try{localStorage.setItem('bollai_activityLogs',JSON.stringify(activityLogs||[]));}catch(e){}}
 
 // ─── Auth ──────────────────────────────────────────────────────
 function doLogin(){
@@ -653,12 +653,12 @@ function renderDriverTable(){
 
 function renderAllRecords(filter){
   var el=document.getElementById('all-records-content');if(!el)return;el.innerHTML='';
-  var all=[
-    ...leaves.map(function(l){return Object.assign({},l,{_type:'leave',_date:l.date});}),
-    ...trips.map(function(t){return Object.assign({},t,{_type:'trip',_date:t.date});}),
-    ...dispatches.map(function(d){return Object.assign({},d,{_type:'dispatch',_date:d.date});}),
-    ...oils.map(function(o){return Object.assign({},o,{_type:'oil',_date:o.date});})
-  ].filter(function(x){return filter==='all'||x.driverId===filter;})
+  var all=[].concat(
+    leaves.map(function(l){return Object.assign({},l,{_type:'leave',_date:l.date});}),
+    trips.map(function(t){return Object.assign({},t,{_type:'trip',_date:t.date});}),
+    dispatches.map(function(d){return Object.assign({},d,{_type:'dispatch',_date:d.date});}),
+    oils.map(function(o){return Object.assign({},o,{_type:'oil',_date:o.date});})
+  ).filter(function(x){return filter==='all'||x.driverId===filter;})
    .sort(function(a,b){return b._date.localeCompare(a._date);});
   var filteredLogs=activityLogs.filter(function(log){
     if(filter==='all')return true;
@@ -988,8 +988,9 @@ function delDriver(id){
 
 // ─── Utility ───────────────────────────────────────────────────
 function logActivity(type,action,summary){
+  if(!Array.isArray(activityLogs))activityLogs=[];
   activityLogs.push({dt:nowDtStr(),type:type,action:action,summary:summary,by:currentUser.name});
-  saveActivityLogs();
+  try{localStorage.setItem('bollai_activityLogs',JSON.stringify(activityLogs));}catch(e){console.error('log save failed',e);}
 }
 function todayStr(){var n=new Date();return gds(n.getFullYear(),n.getMonth(),n.getDate());}
 function nowDtStr(){var n=new Date();return n.getFullYear()+'-'+(String(n.getMonth()+1).padStart(2,'0'))+'-'+(String(n.getDate()).padStart(2,'0'))+' '+(String(n.getHours()).padStart(2,'0'))+':'+(String(n.getMinutes()).padStart(2,'0'));}
