@@ -354,13 +354,7 @@ function loadData(cb){
     fb.fbGet('activityLogs')
   ]).then(function(results){
     var dbDrivers=objToArr(results[0]);
-    drivers = dbDrivers.length ? dbDrivers : DEFAULT_DRIVERS.slice();
-    // If using defaults, save them to Firebase
-    if(!results[0]){
-      var dobj={};
-      DEFAULT_DRIVERS.forEach(function(d){dobj[d.id]=d;});
-      fb.fbSet('drivers', dobj);
-    }
+    drivers = dbDrivers.length ? dbDrivers : [];
     leaves        = objToArr(results[1]);
     trips         = objToArr(results[2]);
     dispatches    = objToArr(results[3]);
@@ -411,7 +405,7 @@ function doLogin(){
   waitFb(function(){
     window._fb.fbGet('drivers').then(function(result){
       var dbDrivers=objToArr(result);
-      var drvList=dbDrivers.length?dbDrivers:DEFAULT_DRIVERS.slice();
+      var drvList=dbDrivers;
       var d=drvList.find(function(x){return x.idno===id;});
       if(d&&d.active){
         var defaultPw=d.pw||d.phone;
@@ -455,7 +449,7 @@ function startApp(){
   paths.forEach(function(path){
     fb.fbListen(path, function(val){
       var arr=objToArr(val);
-      if(path==='drivers')drivers=arr.length?arr:DEFAULT_DRIVERS.slice();
+      if(path==='drivers')drivers=arr;
       else if(path==='leaves')leaves=arr;
       else if(path==='trips')trips=arr;
       else if(path==='dispatches')dispatches=arr;
