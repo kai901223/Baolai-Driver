@@ -3,7 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+// ─── Firebase 設定 ─────────────────────────────────────────────
+var firebaseConfig = {
+  apiKey: "AIzaSyAGstIjZKIHNsjKsXBqSDzqlvzTZKpa-qU",
+  authDomain: "baolai-driver.firebaseapp.com",
+  databaseURL: "https://baolai-driver-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "baolai-driver",
+  storageBucket: "baolai-driver.firebasestorage.app",
+  messagingSenderId: "727030329548",
+  appId: "1:727030329548:web:684c7c6c31456bf1ea5269"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+
+// ── Firebase helpers ──────────────────────────────────────────
+function fbSet(path, val){ return db.ref(path).set(val); }
+function fbGet(path){ return db.ref(path).once('value').then(function(s){return s.val();}); }
+function fbPush(path, val){ return db.ref(path).push(val); }
+function fbUpdate(path, val){ return db.ref(path).update(val); }
+function fbRemove(path){ return db.ref(path).remove(); }
+function fbListen(path, cb){ db.ref(path).on('value', function(snap){cb(snap.val());}); }
+
+window._fb = { fbSet:fbSet, fbGet:fbGet, fbPush:fbPush, fbUpdate:fbUpdate, fbRemove:fbRemove, fbListen:fbListen };
+window._fbReady = true;
+</script>
 <title>寶萊司機管理系統</title>
+
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a1a;font-size:14px}
@@ -149,6 +177,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <input class="form-input" type="password" id="login-pw">
   </div>
   <button class="btn btn-primary" style="width:100%;padding:9px;margin-top:8px;font-size:13px" onclick="doLogin()">登入</button>
+  <div id="login-loading" style="display:none;text-align:center;padding:10px;font-size:13px;color:var(--text-secondary)">連線中，請稍候...</div>
   <div class="hint-box" style="margin-top:12px">
     司機帳號：身分證字號 ／ 密碼預設：手機號碼
   </div>
@@ -288,12 +317,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div id="modal-box" class="modal" onclick="event.stopPropagation()"></div>
 </div>
 
+
 <script>
-// ─── Storage helpers ───────────────────────────────────────────
-var LS={
-  get:function(k,def){try{var v=localStorage.getItem('bollai_'+k);return v?JSON.parse(v):def;}catch(e){return def;}},
-  set:function(k,v){try{localStorage.setItem('bollai_'+k,JSON.stringify(v));}catch(e){}}
-};
+// ─── Firebase storage helpers (async) ─────────────────────────
+function objToArr(obj){
+  if(!obj)return [];
+  return Object.keys(obj).map(function(k){var v=obj[k];v._fbKey=k;return v;});
+}
+function waitFb(cb){
+  // Firebase compat SDK loads synchronously, always ready
+  cb();
+}
 
 // ─── Default data ──────────────────────────────────────────────
 var DEFAULT_DRIVERS=[
@@ -308,41 +342,97 @@ var calYear,calMonth,calViewMode='all',driverFilter='all';
 
 var drivers,leaves,trips,dispatches,oils,driverLogs,activityLogs;
 
-function loadData(){
-  drivers=LS.get('drivers',DEFAULT_DRIVERS);
-  leaves=LS.get('leaves',[]);
-  trips=LS.get('trips',[]);
-  dispatches=LS.get('dispatches',[]);
-  oils=LS.get('oils',[]);
-  driverLogs=LS.get('driverLogs',[]);
-  activityLogs=LS.get('activityLogs',[])||[];
+function loadData(cb){
+  var fb=window._fb;
+  Promise.all([
+    fb.fbGet('drivers'),
+    fb.fbGet('leaves'),
+    fb.fbGet('trips'),
+    fb.fbGet('dispatches'),
+    fb.fbGet('oils'),
+    fb.fbGet('driverLogs'),
+    fb.fbGet('activityLogs')
+  ]).then(function(results){
+    var dbDrivers=objToArr(results[0]);
+    drivers = dbDrivers.length ? dbDrivers : DEFAULT_DRIVERS.slice();
+    // If using defaults, save them to Firebase
+    if(!results[0]){
+      var dobj={};
+      DEFAULT_DRIVERS.forEach(function(d){dobj[d.id]=d;});
+      fb.fbSet('drivers', dobj);
+    }
+    leaves        = objToArr(results[1]);
+    trips         = objToArr(results[2]);
+    dispatches    = objToArr(results[3]);
+    oils          = objToArr(results[4]);
+    driverLogs    = objToArr(results[5]);
+    activityLogs  = objToArr(results[6]);
+    if(cb)cb();
+  }).catch(function(e){
+    console.error('Firebase load error:', e);
+    alert('資料載入失敗，請確認網路連線');
+  });
 }
-function saveDrivers(){LS.set('drivers',drivers);}
-function saveLeaves(){LS.set('leaves',leaves);}
-function saveTrips(){LS.set('trips',trips);}
-function saveDispatches(){LS.set('dispatches',dispatches);}
-function saveOils(){LS.set('oils',oils);}
-function saveDriverLogs(){LS.set('driverLogs',driverLogs);}
-function saveActivityLogs(){try{localStorage.setItem('bollai_activityLogs',JSON.stringify(activityLogs||[]));}catch(e){}}
+function arrToObj(arr){
+  var o={};
+  arr.forEach(function(item){
+    var key=item._fbKey||item.id||('k'+Date.now()+Math.random());
+    var v=Object.assign({},item);delete v._fbKey;
+    o[key]=v;
+  });
+  return o;
+}
+function saveDrivers(){window._fb.fbSet('drivers', arrToObj(drivers));}
+function saveLeaves(){window._fb.fbSet('leaves', arrToObj(leaves));}
+function saveTrips(){window._fb.fbSet('trips', arrToObj(trips));}
+function saveDispatches(){window._fb.fbSet('dispatches', arrToObj(dispatches));}
+function saveOils(){window._fb.fbSet('oils', arrToObj(oils));}
+function saveDriverLogs(){window._fb.fbSet('driverLogs', arrToObj(driverLogs));}
+function saveActivityLogs(){window._fb.fbSet('activityLogs', arrToObj(activityLogs));}
 
 // ─── Auth ──────────────────────────────────────────────────────
 function doLogin(){
-  loadData();
   var id=document.getElementById('login-id').value.trim();
   var pw=document.getElementById('login-pw').value.trim();
+  // Admin check first (no need to load data)
   if(id==='baolai'&&pw==='93637890'){
     currentRole='admin';currentUser={name:'管理員',id:'admin'};
-    startApp();return;
+    showLoading(true);
+    waitFb(function(){
+      loadData(function(){
+        showLoading(false);
+        startApp();
+      });
+    });
+    return;
   }
-  var d=drivers.find(function(x){return x.idno===id;});
-  if(d&&d.active){
-    var defaultPw=d.pw||d.phone;
-    if(pw===defaultPw||pw===d.phone){
-      currentRole='driver';currentUser={name:d.name,id:d.id};
-      startApp();return;
-    }
-  }
-  alert('帳號或密碼錯誤');
+  // Driver: load drivers from Firebase to verify
+  showLoading(true);
+  waitFb(function(){
+    window._fb.fbGet('drivers').then(function(result){
+      var dbDrivers=objToArr(result);
+      var drvList=dbDrivers.length?dbDrivers:DEFAULT_DRIVERS.slice();
+      var d=drvList.find(function(x){return x.idno===id;});
+      if(d&&d.active){
+        var defaultPw=d.pw||d.phone;
+        if(pw===defaultPw||pw===d.phone){
+          currentRole='driver';currentUser={name:d.name,id:d.id};
+          loadData(function(){
+            showLoading(false);
+            startApp();
+          });
+          return;
+        }
+      }
+      showLoading(false);
+      alert('帳號或密碼錯誤');
+    });
+  });
+}
+
+function showLoading(show){
+  var el=document.getElementById('login-loading');
+  if(el)el.style.display=show?'block':'none';
 }
 
 function doLogout(){
@@ -358,6 +448,29 @@ function startApp(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('main-app').style.display='flex';
   setupUI();renderAll();
+  // Real-time sync: re-load and re-render when data changes
+  var fb=window._fb;
+
+  var paths=['drivers','leaves','trips','dispatches','oils'];
+  paths.forEach(function(path){
+    fb.fbListen(path, function(val){
+      var arr=objToArr(val);
+      if(path==='drivers')drivers=arr.length?arr:DEFAULT_DRIVERS.slice();
+      else if(path==='leaves')leaves=arr;
+      else if(path==='trips')trips=arr;
+      else if(path==='dispatches')dispatches=arr;
+      else if(path==='oils')oils=arr;
+      renderAll();
+      rebuildDriverSelects();
+    });
+  });
+  fb.fbListen('activityLogs', function(val){
+    activityLogs=objToArr(val);
+    renderAllRecords(document.getElementById('allrecords-filter')?document.getElementById('allrecords-filter').value:'all');
+  });
+  fb.fbListen('driverLogs', function(val){
+    driverLogs=objToArr(val);
+  });
 }
 
 function setupUI(){
@@ -989,8 +1102,9 @@ function delDriver(id){
 // ─── Utility ───────────────────────────────────────────────────
 function logActivity(type,action,summary){
   if(!Array.isArray(activityLogs))activityLogs=[];
-  activityLogs.push({dt:nowDtStr(),type:type,action:action,summary:summary,by:currentUser.name});
-  try{localStorage.setItem('bollai_activityLogs',JSON.stringify(activityLogs));}catch(e){console.error('log save failed',e);}
+  var entry={dt:nowDtStr(),type:type,action:action,summary:summary,by:currentUser.name};
+  activityLogs.push(entry);
+  window._fb.fbPush('activityLogs', entry);
 }
 function todayStr(){var n=new Date();return gds(n.getFullYear(),n.getMonth(),n.getDate());}
 function nowDtStr(){var n=new Date();return n.getFullYear()+'-'+(String(n.getMonth()+1).padStart(2,'0'))+'-'+(String(n.getDate()).padStart(2,'0'))+' '+(String(n.getHours()).padStart(2,'0'))+':'+(String(n.getMinutes()).padStart(2,'0'));}
