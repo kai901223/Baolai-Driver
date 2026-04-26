@@ -391,6 +391,7 @@ function doLogin(){
   // Admin check first (no need to load data)
   if(id==='baolai'&&pw==='93637890'){
     currentRole='admin';currentUser={name:'管理員',id:'admin'};
+    saveSession('admin', {name:'管理員',id:'admin'});
     showLoading(true);
     waitFb(function(){
       loadData(function(){
@@ -411,6 +412,7 @@ function doLogin(){
         var defaultPw=d.pw||d.phone;
         if(pw===defaultPw||pw===d.phone){
           currentRole='driver';currentUser={name:d.name,id:d.id};
+          saveSession('driver', {name:d.name,id:d.id});
           loadData(function(){
             showLoading(false);
             startApp();
@@ -429,7 +431,29 @@ function showLoading(show){
   if(el)el.style.display=show?'block':'none';
 }
 
+function saveSession(role, user){
+  var expire=Date.now()+(7*24*60*60*1000); // 7 days
+  localStorage.setItem('baolai_session', JSON.stringify({role:role,user:user,expire:expire}));
+}
+function clearSession(){
+  localStorage.removeItem('baolai_session');
+}
+function checkSession(){
+  try{
+    var s=JSON.parse(localStorage.getItem('baolai_session'));
+    if(!s||Date.now()>s.expire){clearSession();return;}
+    currentRole=s.role;currentUser=s.user;
+    showLoading(true);
+    waitFb(function(){
+      loadData(function(){
+        showLoading(false);
+        startApp();
+      });
+    });
+  }catch(e){clearSession();}
+}
 function doLogout(){
+  clearSession();
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('main-app').style.display='none';
   document.getElementById('login-id').value='';
@@ -442,29 +466,87 @@ function startApp(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('main-app').style.display='flex';
   setupUI();renderAll();
-  // Real-time sync: re-load and re-render when data changes
-  var fb=window._fb;
+  // Real-time sync
+  setupRealtimeListeners();
 
+  // Re-sync when tab becomes visible again (mobile background fix)
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='visible'){
+      refreshData();
+    }
+  });
+
+  // Polling fallback every 30 seconds for mobile
+  setInterval(function(){
+    if(document.visibilityState==='visible'){
+      refreshData();
+    }
+  }, 30000);
+}
+
+function setupRealtimeListeners(){
+  var fb=window._fb;
   var paths=['drivers','leaves','trips','dispatches','oils'];
   paths.forEach(function(path){
-    fb.fbListen(path, function(val){
-      var arr=objToArr(val);
+    db.ref(path).on('value', function(snap){
+      var arr=objToArr(snap.val());
       if(path==='drivers')drivers=arr;
       else if(path==='leaves')leaves=arr;
       else if(path==='trips')trips=arr;
       else if(path==='dispatches')dispatches=arr;
       else if(path==='oils')oils=arr;
-      renderAll();
+      renderCurrentPanel();
       rebuildDriverSelects();
     });
   });
-  fb.fbListen('activityLogs', function(val){
-    activityLogs=objToArr(val);
-    renderAllRecords(document.getElementById('allrecords-filter')?document.getElementById('allrecords-filter').value:'all');
+  db.ref('activityLogs').on('value', function(snap){
+    activityLogs=objToArr(snap.val());
   });
-  fb.fbListen('driverLogs', function(val){
-    driverLogs=objToArr(val);
+  db.ref('driverLogs').on('value', function(snap){
+    driverLogs=objToArr(snap.val());
   });
+}
+
+function refreshData(){
+  var fb=window._fb;
+  Promise.all([
+    fb.fbGet('drivers'),
+    fb.fbGet('leaves'),
+    fb.fbGet('trips'),
+    fb.fbGet('dispatches'),
+    fb.fbGet('oils'),
+    fb.fbGet('activityLogs'),
+    fb.fbGet('driverLogs')
+  ]).then(function(results){
+    drivers     = objToArr(results[0]);
+    leaves      = objToArr(results[1]);
+    trips       = objToArr(results[2]);
+    dispatches  = objToArr(results[3]);
+    oils        = objToArr(results[4]);
+    activityLogs= objToArr(results[5]);
+    driverLogs  = objToArr(results[6]);
+    renderCurrentPanel();
+    rebuildDriverSelects();
+  });
+}
+
+// Only re-render the currently active panel instead of everything
+function renderCurrentPanel(){
+  var active=document.querySelector('.panel.active');
+  if(!active)return;
+  var id=active.id;
+  renderCal();
+  if(id==='panel-leave')renderLeave();
+  else if(id==='panel-trip')renderTrip();
+  else if(id==='panel-dispatch')renderDispatch();
+  else if(id==='panel-oil')renderOil();
+  else if(id==='panel-drivers')renderDriverTable();
+  else if(id==='panel-allrecords')renderAllRecords(document.getElementById('allrecords-filter')?document.getElementById('allrecords-filter').value:'all');
+  else if(id==='panel-daydetail'){
+    var title=document.getElementById('day-detail-title').textContent;
+    var ds=title.replace(' 當日詳情','').trim();
+    if(ds)showDayDetail(ds);
+  }
 }
 
 function setupUI(){
@@ -1110,6 +1192,9 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal()
 
 // ─── Enter key login ───────────────────────────────────────────
 document.getElementById('login-pw').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+
+// ─── Auto login if session valid ───────────────────────────────
+checkSession();
 </script>
 </body>
 </html>
