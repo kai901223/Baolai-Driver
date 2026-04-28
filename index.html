@@ -314,7 +314,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <button class="btn btn-primary" onclick="openDriverModal()">+ 新增司機</button></div>
       <div class="table-wrap">
         <table class="admin-table">
-          <thead><tr><th>姓名</th><th>帳號（身分證）</th><th>電話</th><th>狀態</th><th>操作</th></tr></thead>
+          <thead><tr><th style="width:30px">#</th><th>姓名</th><th>帳號（身分證）</th><th>電話</th><th>狀態</th><th>操作</th></tr></thead>
           <tbody id="driver-table-body"></tbody>
         </table>
       </div>
@@ -861,9 +861,9 @@ function renderOil(){
 
 function renderDriverTable(){
   var tb=document.getElementById('driver-table-body');if(!tb)return;tb.innerHTML='';
-  drivers.forEach(function(d){
+  drivers.forEach(function(d,i){
     var tr=document.createElement('tr');
-    tr.innerHTML='<td>'+d.name+'</td><td style="font-family:monospace;font-size:12px">'+d.idno+'</td><td>'+d.phone+'</td>'
+    tr.innerHTML='<td style="color:var(--text-muted);font-size:11px;text-align:center;width:24px">'+(i+1)+'</td>'+'<td>'+d.name+'</td><td style="font-family:monospace;font-size:12px">'+d.idno+'</td><td>'+d.phone+'</td>'
       +'<td><span class="status-pill" style="background:'+(d.active?'var(--success-bg)':'var(--bg-tertiary)')+';color:'+(d.active?'var(--success-text)':'var(--text-secondary)')+';">'+(d.active?'在職':'停用')+'</span></td>'
       +'<td><button class="act-btn" onclick="editDriver(\''+d.id+'\')">編輯</button> <button class="act-btn danger" onclick="delDriver(\''+d.id+'\')">刪除</button></td>';
     tb.appendChild(tr);
@@ -976,9 +976,11 @@ function openLeaveModal(prefillDate){
 function saveLeave(){
   var type=document.querySelector('input[name=ltype]:checked').value;
   var dateVal=document.getElementById('m-leave-date').value;
-  if(currentRole==='driver'&&!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
-  var sameDay=leaves.filter(function(l){return l.date===dateVal;});
-  if(sameDay.length>=4){alert('已達當日休假人數上限');return;}
+  if(currentRole==='driver'){
+    if(!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
+    var sameDay=leaves.filter(function(l){return l.date===dateVal;});
+    if(sameDay.length>=4){alert('已達當日休假人數上限');return;}
+  }
   var nl={id:'L'+Date.now(),driverId:currentUser.id,driverName:currentUser.name,type:type,date:dateVal,note:document.getElementById('m-leave-note').value,createdAt:nowDtStr(),updatedAt:''};
   if(type==='partial'){nl.startTime=document.getElementById('m-leave-start').value;nl.endTime=document.getElementById('m-leave-end').value;}
   leaves.push(nl);saveLeaves();
@@ -996,9 +998,11 @@ function editLeave(id){
 function updateLeave(id){
   var l=leaves.find(function(x){return x.id===id;});if(!l)return;
   var dateVal=document.getElementById('m-leave-date').value;
-  if(currentRole==='driver'&&!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
-  var sameDay=leaves.filter(function(x){return x.date===dateVal&&x.id!==id;});
-  if(sameDay.length>=4){alert('已達當日休假人數上限');return;}
+  if(currentRole==='driver'){
+    if(!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
+    var sameDay=leaves.filter(function(x){return x.date===dateVal&&x.id!==id;});
+    if(sameDay.length>=4){alert('已達當日休假人數上限');return;}
+  }
   l.date=dateVal;
   l.note=document.getElementById('m-leave-note').value;
   if(l.type==='partial'){var s=document.getElementById('m-leave-start');var e=document.getElementById('m-leave-end');if(s)l.startTime=s.value;if(e)l.endTime=e.value;}
@@ -1023,6 +1027,7 @@ function saveTrip(){
   var type=document.getElementById('m-trip-type').value;
   var dateVal=document.getElementById('m-trip-date').value;
   if(currentRole==='driver'&&!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
+  // admin has no date restrictions
   trips.push({id:'T'+Date.now(),driverId:currentUser.id,driverName:currentUser.name,
     date:document.getElementById('m-trip-date').value,time:document.getElementById('m-trip-time').value,
     tripType:type,airport:getAirport(type),froms:window._tmpFroms.slice(),tos:window._tmpTos.slice(),
@@ -1172,7 +1177,9 @@ function saveDriver(){
   var nd={id:'D'+Date.now(),name:document.getElementById('m-drv-name').value,idno:idno,phone:phone,active:true,pw:phone};
   drivers.push(nd);
   driverLogs.push({dt:nowDtStr(),action:'新增',name:nd.name,by:currentUser.name});
-  saveDrivers();saveDriverLogs();closeModal();renderDriverTable();rebuildDriverSelects();renderAllRecords('all');
+  closeModal();
+  saveDrivers();saveDriverLogs();
+  renderDriverTable();rebuildDriverSelects();renderAllRecords('all');
 }
 function editDriver(id){
   var d=drivers.find(function(x){return x.id===id;});if(!d)return;
