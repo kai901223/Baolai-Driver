@@ -980,7 +980,7 @@ function saveLeave(){
   if(currentRole==='driver'){
     if(!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
     var sameDay=leaves.filter(function(l){return l.date===dateVal;});
-    if(sameDay.length>=4){alert('已達當日休假人數上限');return;}
+    if(sameDay.length>=5){alert('已達當日休假人數上限');return;}
   }
   var _leaveDriver=currentRole==='admin'?drivers.find(function(d){return d.id===document.getElementById('m-for-driver').value;})||{id:currentUser.id,name:currentUser.name}:{id:currentUser.id,name:currentUser.name};
   var nl={id:'L'+Date.now(),driverId:_leaveDriver.id,driverName:_leaveDriver.name,type:type,date:dateVal,note:document.getElementById('m-leave-note').value,createdAt:nowDtStr(),updatedAt:''};
@@ -1003,7 +1003,7 @@ function updateLeave(id){
   if(currentRole==='driver'){
     if(!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
     var sameDay=leaves.filter(function(x){return x.date===dateVal&&x.id!==id;});
-    if(sameDay.length>=4){alert('已達當日休假人數上限');return;}
+    if(sameDay.length>=5){alert('已達當日休假人數上限');return;}
   }
   l.date=dateVal;
   l.note=document.getElementById('m-leave-note').value;
