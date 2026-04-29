@@ -967,6 +967,7 @@ function modalBgClick(e){if(e.target===document.getElementById('modal-overlay'))
 // ─── Leave ─────────────────────────────────────────────────────
 function openLeaveModal(prefillDate){
   openModal('<div class="modal-title">新增休假</div>'
+    +(currentRole==='admin'?'<div class="form-row"><label class="form-label">司機</label><select class="form-input" id="m-for-driver">'+drivers.filter(function(d){return d.active;}).map(function(d){return'<option value="'+d.id+'">'+d.name+'</option>';}).join('')+'</select></div>':'')
     +'<div class="form-row"><label class="form-label">休假日期</label><input class="form-input" type="date" id="m-leave-date" value="'+(prefillDate||todayStr())+'"></div>'
     +'<div class="form-row"><label class="form-label">休假類型</label><div class="radio-group"><label class="radio-opt"><input type="radio" name="ltype" value="full" checked onchange="document.getElementById(\'pt\').style.display=\'none\'"> 整日休假</label><label class="radio-opt"><input type="radio" name="ltype" value="partial" onchange="document.getElementById(\'pt\').style.display=\'block\'"> 部分休假</label></div></div>'
     +'<div id="pt" style="display:none"><div class="form-row-2"><div><label class="form-label">開始時間</label><input class="form-input" type="time" id="m-leave-start" value="08:00"></div><div><label class="form-label">結束時間</label><input class="form-input" type="time" id="m-leave-end" value="12:00"></div></div></div>'
@@ -981,7 +982,8 @@ function saveLeave(){
     var sameDay=leaves.filter(function(l){return l.date===dateVal;});
     if(sameDay.length>=4){alert('已達當日休假人數上限');return;}
   }
-  var nl={id:'L'+Date.now(),driverId:currentUser.id,driverName:currentUser.name,type:type,date:dateVal,note:document.getElementById('m-leave-note').value,createdAt:nowDtStr(),updatedAt:''};
+  var _leaveDriver=currentRole==='admin'?drivers.find(function(d){return d.id===document.getElementById('m-for-driver').value;})||{id:currentUser.id,name:currentUser.name}:{id:currentUser.id,name:currentUser.name};
+  var nl={id:'L'+Date.now(),driverId:_leaveDriver.id,driverName:_leaveDriver.name,type:type,date:dateVal,note:document.getElementById('m-leave-note').value,createdAt:nowDtStr(),updatedAt:''};
   if(type==='partial'){nl.startTime=document.getElementById('m-leave-start').value;nl.endTime=document.getElementById('m-leave-end').value;}
   leaves.push(nl);saveLeaves();
   logActivity('leave','新增',nl.driverName+' '+nl.date+(nl.type==='full'?' 整日休假':' 部分休假 '+nl.startTime+'-'+nl.endTime));
@@ -1016,6 +1018,7 @@ function delLeave(id){var l=leaves.find(function(x){return x.id===id;});if(l&&co
 // ─── Trip ──────────────────────────────────────────────────────
 function openTripModal(prefillDate){
   openModal('<div class="modal-title">新增私趟</div>'
+    +(currentRole==='admin'?'<div class="form-row"><label class="form-label">司機</label><select class="form-input" id="m-for-driver">'+drivers.filter(function(d){return d.active;}).map(function(d){return'<option value="'+d.id+'">'+d.name+'</option>';}).join('')+'</select></div>':'')
     +'<div class="form-row-2"><div><label class="form-label">用車日期</label><input class="form-input" type="date" id="m-trip-date" value="'+(prefillDate||todayStr())+'"></div><div><label class="form-label">出發時間</label><input class="form-input" type="time" id="m-trip-time" value="09:00"></div></div>'
     +tripFormHtml(null)
     +'<div class="form-row"><label class="form-label">乘客人數</label><input class="form-input" type="number" id="m-trip-pax" value="1" min="1"></div>'
@@ -1028,7 +1031,8 @@ function saveTrip(){
   var dateVal=document.getElementById('m-trip-date').value;
   if(currentRole==='driver'&&!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
   // admin has no date restrictions
-  trips.push({id:'T'+Date.now(),driverId:currentUser.id,driverName:currentUser.name,
+  var _tripDriver=currentRole==='admin'?drivers.find(function(d){return d.id===document.getElementById('m-for-driver').value;})||{id:currentUser.id,name:currentUser.name}:{id:currentUser.id,name:currentUser.name};
+  trips.push({id:'T'+Date.now(),driverId:_tripDriver.id,driverName:_tripDriver.name,
     date:document.getElementById('m-trip-date').value,time:document.getElementById('m-trip-time').value,
     tripType:type,airport:getAirport(type),froms:window._tmpFroms.slice(),tos:window._tmpTos.slice(),
     passengers:parseInt(document.getElementById('m-trip-pax').value)||1,
