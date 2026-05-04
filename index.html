@@ -1585,12 +1585,12 @@ function setupScheduleUI(){
 function openSchedulePasteModal(){
   var curDate = document.getElementById('schedule-date-filter') ? document.getElementById('schedule-date-filter').value : todayStr();
   openModal(
-    '<div class="modal-title">匯入班表（整張）</div>'
+    '<div class="modal-title">匯入班表（排）</div>'
     +'<div class="form-row"><label class="form-label">日期</label>'
     +'<input class="form-input" type="date" id="m-sch-date" value="'+curDate+'"></div>'
-    +'<div class="form-row"><label class="form-label">貼上整張班表</label>'
-    +'<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">Google Sheet → Cmd+A 全選 → Cmd+C 複製 → 貼入下方</div>'
-    +'<textarea class="paste-area" id="m-sch-text" placeholder="貼上整張班表內容..." style="min-height:200px;font-size:11px;font-family:monospace"></textarea></div>'
+    +'<div class="form-row"><label class="form-label">貼上一排班表</label>'
+    +'<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">Google Sheet → 選擇一排 → 複製 → 貼入下方</div>'
+    +'<textarea class="paste-area" id="m-sch-text" placeholder="貼上一排班表內容..." style="min-height:200px;font-size:11px;font-family:monospace"></textarea></div>'
     +'<div style="font-size:11px;color:var(--text-secondary);padding:4px 0">系統自動辨識「司機：」或「姓名：」欄位對應各司機</div>'
     +'<div class="modal-footer">'
     +'<button class="btn" onclick="closeModal()">取消</button>'
