@@ -985,7 +985,7 @@ function renderDriverTable(){
   drivers.forEach(function(d,i){
     var tr=document.createElement('tr');
     tr.innerHTML='<td style="color:var(--text-muted);font-size:11px;text-align:center;width:24px">'+(i+1)+'</td>'+'<td>'+d.name+'</td><td style="font-family:monospace;font-size:12px">'+d.idno+'</td><td>'+d.phone+'</td>'
-      +'<td><span class="status-pill" style="background:'+(d.active?'var(--success-bg)':'var(--bg-tertiary)')+';color:'+(d.active?'var(--success-text)':'var(--text-secondary)')+';">'+(d.active?'在職':'停用')+'</span></td>'
+      +'<td><span class="status-pill" onclick="toggleDriverActive(\''+d.id+'\')" style="cursor:pointer;background:'+(d.active?'var(--success-bg)':'var(--bg-tertiary)')+';color:'+(d.active?'var(--success-text)':'var(--text-secondary)')+';">'+(d.active?'在職':'停用')+'</span></td>'
       +'<td><button class="act-btn" onclick="editDriver(\''+d.id+'\')">編輯</button> <button class="act-btn danger" onclick="delDriver(\''+d.id+'\')">刪除</button></td>';
     tb.appendChild(tr);
   });
@@ -1306,6 +1306,15 @@ function saveDriver(){
   saveDrivers();saveDriverLogs();
   renderDriverTable();rebuildDriverSelects();renderAllRecords('all');
 }
+function toggleDriverActive(id){
+  var d=drivers.find(function(x){return x.id===id;});
+  if(!d)return;
+  d.active=!d.active;
+  driverLogs.push({dt:nowDtStr(),action:d.active?'復職':'停用',name:d.name,by:currentUser.name});
+  saveDrivers();saveDriverLogs();
+  renderDriverTable();rebuildDriverSelects();renderAllRecords('all');
+}
+
 function editDriver(id){
   var d=drivers.find(function(x){return x.id===id;});if(!d)return;
   openModal('<div class="modal-title">編輯司機</div>'
