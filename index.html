@@ -732,7 +732,8 @@ function renderTripDesc(item){
   var ap=item.airport?' · '+item.airport:'';
   var frm=item.froms&&item.froms.length?item.froms.join(' / '):'—';
   var to=item.tos&&item.tos.length?item.tos.join(' / '):'—';
-  return '<span class="type-badge" style="background:'+typeBg(item.tripType)+';color:'+typeColor(item.tripType)+'">'+item.tripType+'</span>'+item.time+ap+' | '+frm+' → '+to;
+  var timeStr=(item.tripType==='包車'&&item.endTime)?item.time+'-'+item.endTime:item.time;
+  return '<span class="type-badge" style="background:'+typeBg(item.tripType)+';color:'+typeColor(item.tripType)+'">'+item.tripType+'</span>'+timeStr+ap+' | '+frm+' → '+to;
 }
 
 function getAirport(type){
@@ -765,6 +766,23 @@ function updateAirportRow(type){
     var ap=document.getElementById('m-airport');
     applyDefaultLocs(type,ap?ap.value:'桃園機場');
   }
+  toggleEndTimeRow(type);
+}
+
+function toggleEndTimeRow(type){
+  var row=document.getElementById('m-endtime-row');
+  var lbl=document.getElementById('m-time-label');
+  if(lbl){
+    if(type==='包車'){
+      if(!lbl.getAttribute('data-default'))lbl.setAttribute('data-default',lbl.textContent);
+      lbl.textContent='開始時間';
+    }else{
+      var d=lbl.getAttribute('data-default');
+      if(d)lbl.textContent=d;
+    }
+  }
+  if(!row)return;
+  row.style.display=(type==='包車')?'block':'none';
 }
 
 function onAirportChange(val){
@@ -1055,7 +1073,7 @@ function saveLeave(){
   if(currentRole==='driver'){
     if(!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
     var sameDay=leaves.filter(function(l){return l.date===dateVal;});
-    if(sameDay.length>=4){alert('已達當日休假人數上限');return;}
+    if(sameDay.length>=5){alert('已達當日休假人數上限');return;}
   }
   var _leaveDriver=currentRole==='admin'?drivers.find(function(d){return d.id===document.getElementById('m-for-driver').value;})||{id:currentUser.id,name:currentUser.name}:{id:currentUser.id,name:currentUser.name};
   var nl={id:'L'+Date.now(),driverId:_leaveDriver.id,driverName:_leaveDriver.name,type:type,date:dateVal,note:document.getElementById('m-leave-note').value,createdAt:nowDtStr(),updatedAt:''};
@@ -1078,7 +1096,7 @@ function updateLeave(id){
   if(currentRole==='driver'){
     if(!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
     var sameDay=leaves.filter(function(x){return x.date===dateVal&&x.id!==id;});
-    if(sameDay.length>=4){alert('已達當日休假人數上限');return;}
+    if(sameDay.length>=5){alert('已達當日休假人數上限');return;}
   }
   l.date=dateVal;
   l.note=document.getElementById('m-leave-note').value;
@@ -1094,21 +1112,26 @@ function delLeave(id){var l=leaves.find(function(x){return x.id===id;});if(l&&co
 function openTripModal(prefillDate){
   openModal('<div class="modal-title">新增私趟</div>'
     +(currentRole==='admin'?'<div class="form-row"><label class="form-label">司機</label><select class="form-input" id="m-for-driver">'+drivers.filter(function(d){return d.active;}).map(function(d){return'<option value="'+d.id+'">'+d.name+'</option>';}).join('')+'</select></div>':'')
-    +'<div class="form-row-2"><div><label class="form-label">用車日期</label><input class="form-input" type="date" id="m-trip-date" value="'+(prefillDate||todayStr())+'"></div><div><label class="form-label">出發時間</label><input class="form-input" type="time" id="m-trip-time" value="09:00"></div></div>'
+    +'<div class="form-row-2"><div><label class="form-label">用車日期</label><input class="form-input" type="date" id="m-trip-date" value="'+(prefillDate||todayStr())+'"></div><div><label class="form-label" id="m-time-label">出發時間</label><input class="form-input" type="time" id="m-trip-time" value="09:00"></div></div>'
+    +'<div class="form-row" id="m-endtime-row" style="display:none"><label class="form-label">結束時間</label><input class="form-input" type="time" id="m-trip-endtime" value="17:00"></div>'
     +tripFormHtml(null)
     +'<div class="form-row"><label class="form-label">乘客人數</label><input class="form-input" type="number" id="m-trip-pax" value="1" min="1"></div>'
     +'<div class="form-row"><label class="form-label">備註</label><input class="form-input" id="m-trip-note" placeholder="選填"></div>'
     +'<div class="modal-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveTrip()">儲存</button></div>');
   initLocTags();
+  toggleEndTimeRow('接機');
 }
 function saveTrip(){
   var type=document.getElementById('m-trip-type').value;
   var dateVal=document.getElementById('m-trip-date').value;
+  var timeVal=document.getElementById('m-trip-time').value;
+  var endTimeVal=type==='包車'?document.getElementById('m-trip-endtime').value:'';
+  if(type==='包車'&&(!timeVal||!endTimeVal)){alert('包車需填寫開始時間及結束時間');return;}
   if(currentRole==='driver'&&!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
   // admin has no date restrictions
   var _tripDriver=currentRole==='admin'?drivers.find(function(d){return d.id===document.getElementById('m-for-driver').value;})||{id:currentUser.id,name:currentUser.name}:{id:currentUser.id,name:currentUser.name};
   trips.push({id:'T'+Date.now(),driverId:_tripDriver.id,driverName:_tripDriver.name,
-    date:document.getElementById('m-trip-date').value,time:document.getElementById('m-trip-time').value,
+    date:dateVal,time:timeVal,endTime:endTimeVal,
     tripType:type,airport:getAirport(type),froms:window._tmpFroms.slice(),tos:window._tmpTos.slice(),
     passengers:parseInt(document.getElementById('m-trip-pax').value)||1,
     amount:0,
@@ -1119,19 +1142,24 @@ function saveTrip(){
 function editTrip(id){
   var t=trips.find(function(x){return x.id===id;});if(!t)return;
   openModal('<div class="modal-title">編輯私趟</div>'
-    +'<div class="form-row-2"><div><label class="form-label">日期</label><input class="form-input" type="date" id="m-trip-date" value="'+t.date+'"></div><div><label class="form-label">時間</label><input class="form-input" type="time" id="m-trip-time" value="'+t.time+'"></div></div>'
+    +'<div class="form-row-2"><div><label class="form-label">日期</label><input class="form-input" type="date" id="m-trip-date" value="'+t.date+'"></div><div><label class="form-label" id="m-time-label">時間</label><input class="form-input" type="time" id="m-trip-time" value="'+t.time+'"></div></div>'
+    +'<div class="form-row" id="m-endtime-row" style="display:'+(t.tripType==='包車'?'block':'none')+'"><label class="form-label">結束時間</label><input class="form-input" type="time" id="m-trip-endtime" value="'+(t.endTime||'17:00')+'"></div>'
     +tripFormHtml(t)
     +'<div class="form-row"><label class="form-label">乘客人數</label><input class="form-input" type="number" id="m-trip-pax" value="'+t.passengers+'"></div>'
     +'<div class="form-row"><label class="form-label">備註</label><input class="form-input" id="m-trip-note" value="'+(t.note||'')+'"></div>'
     +'<div class="modal-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="updateTrip(\''+id+'\')">儲存</button></div>');
   initLocTags();
+  toggleEndTimeRow(t.tripType);
 }
 function updateTrip(id){
   var t=trips.find(function(x){return x.id===id;});if(!t)return;
   var type=document.getElementById('m-trip-type').value;
   var dateVal=document.getElementById('m-trip-date').value;
+  var timeVal=document.getElementById('m-trip-time').value;
+  var endTimeVal=type==='包車'?document.getElementById('m-trip-endtime').value:'';
+  if(type==='包車'&&(!timeVal||!endTimeVal)){alert('包車需填寫開始時間及結束時間');return;}
   if(currentRole==='driver'&&!isAtLeast3DaysAhead(dateVal)){alert('請找闆娘申請');return;}
-  t.date=dateVal;t.time=document.getElementById('m-trip-time').value;
+  t.date=dateVal;t.time=timeVal;t.endTime=endTimeVal;
   t.tripType=type;t.airport=getAirport(type);t.froms=window._tmpFroms.slice();t.tos=window._tmpTos.slice();
   t.passengers=parseInt(document.getElementById('m-trip-pax').value)||1;
   t.note=document.getElementById('m-trip-note').value;
