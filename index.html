@@ -504,7 +504,7 @@ function doLogin(){
       var d=drvList.find(function(x){return x.idno===id;});
       if(d&&d.active){
         var defaultPw=d.pw||d.phone;
-        if(pw===defaultPw||pw===d.phone){
+        if(pw===defaultPw){
           currentRole='driver';currentUser={name:d.name,id:d.id};
           saveSession('driver', {name:d.name,id:d.id});
           loadData(function(){
@@ -1307,7 +1307,6 @@ function updateDriver(id){
   var d=drivers.find(function(x){return x.id===id;});if(!d)return;
   var phone=document.getElementById('m-drv-phone').value.trim();
   if(!/^[0-9]{10}$/.test(phone)){alert('手機號碼格式錯誤：請輸入10碼數字');return;}
-  if(drivers.find(function(d){return d.idno===idno;})){alert('此身分證字號已存在，請確認是否重複');return;}
   d.name=document.getElementById('m-drv-name').value;
   d.phone=phone;
   d.active=document.getElementById('m-drv-active').value==='1';
@@ -1318,10 +1317,13 @@ function updateDriver(id){
 }
 function delDriver(id){
   var d=drivers.find(function(x){return x.id===id;});
-  if(d&&confirm('確認刪除此司機帳號？')){
+  if(d&&confirm('確認刪除此司機帳號？\n該司機今日起已登記的私趟及休假也會一併清除。')){
+    var today=todayStr();
+    trips=trips.filter(function(t){return !(t.driverId===id&&t.date>=today);});
+    leaves=leaves.filter(function(l){return !(l.driverId===id&&l.date>=today);});
     driverLogs.push({dt:nowDtStr(),action:'刪除',name:d.name,by:currentUser.name});
     drivers=drivers.filter(function(x){return x.id!==id;});
-    saveDrivers();saveDriverLogs();renderDriverTable();rebuildDriverSelects();renderAllRecords('all');
+    saveDrivers();saveTrips();saveLeaves();saveDriverLogs();renderAll();renderDriverTable();rebuildDriverSelects();renderAllRecords('all');
   }
 }
 
